@@ -113,3 +113,5 @@
   .settings-panel{width:calc(100% - 20px);max-height:calc(100dvh - 30px);overflow:auto}
 }
 @media(min-width:761px){.mobile-brand{display:none}.mobile-nav{display:none!important}}
+
+.community-heading-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.community-heading-actions a{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;padding:10px 14px;border:1px solid rgba(255,255,255,.14);border-radius:12px;color:inherit;background:rgba(255,255,255,.04);font-size:12px;font-weight:700}.community-heading-actions a:hover{background:rgba(255,255,255,.09)}

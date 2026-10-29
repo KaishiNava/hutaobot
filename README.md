@@ -60,3 +60,12 @@ Mobile now uses a compact bottom navigation instead of forcing the desktop sideb
 This message means the Supabase REST API does not see the table. From Supabase Dashboard → SQL Editor, run the **entire** `supabase/schema.sql` file. It creates the community table and indexes, then sends `NOTIFY pgrst, 'reload schema'` to refresh PostgREST's schema cache. Confirm that `public.hutao_community_messages` exists in Table Editor. Then redeploy/restart the Node backend if needed and reload the website.
 
 The API now gives a more explicit setup hint for missing-table/schema-cache errors. Never put the Supabase service-role key in browser code; it belongs only in the backend environment.
+
+
+## Update navigasi & Community
+- Sidebar Community Chat membuka `/community.html` (halaman terpisah, bukan scroll ke bagian bawah).
+- My Profile membuka `/profile.html`.
+- New Conversation membuka `/hutao.html`.
+- Di Community tersedia tombol **Chat with Hutao Bot** untuk membuka chat bot.
+- SQL khusus tabel Community ada di `supabase/community-only.sql`. Jalankan setelah `hutao_users` sudah ada.
+- Tetap set `SUPABASE_URL` dan `SUPABASE_SERVICE_ROLE_KEY` di environment server. Jangan pernah memasukkan service-role key ke file frontend.
