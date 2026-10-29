@@ -67,9 +67,10 @@ function addUserMessage(text, persist=true, image=null, reply=null){
   messages.appendChild(row);scrollBottom();
   if(persist)saveMessage({kind:"user",text,image,reply}).catch(console.error);
 }
+function botAvatar(){const src=localStorage.getItem("hutaoCustomLogo")||"/logo.png";return `<div class="bot-avatar"><img src="${escapeHTML(src)}" alt="Hutao Bot"></div>`;}
 function addTyping(){
   const row=document.createElement("div");row.className="message-row";row.id="typingRow";
-  row.innerHTML='<div class="bot-avatar">火</div><div class="typing"><span></span><span></span><span></span></div>';
+  row.innerHTML=botAvatar()+'<div class="typing"><span></span><span></span><span></span></div>';
   messages.appendChild(row);scrollBottom();return row;
 }
 function renderResponse(data,persist=true){
@@ -86,11 +87,11 @@ function renderResponse(data,persist=true){
   if(data.stats?.length)html+='<div class="stats">'+data.stats.map(s=>`<div class="stat"><small>${escapeHTML(s.label)}</small><b>${escapeHTML(s.value)}</b></div>`).join("")+'</div>';
   if(data.buttons?.length)html+='<div class="card-buttons">'+data.buttons.map(b=>`<button class="card-button ${colorClass(b.color||data.accent)}" data-command="${escapeHTML(b.command||"")}"><span class="btn-icon">${escapeHTML(b.icon||"✦")}</span><span>${escapeHTML(b.label)}</span><span class="btn-arrow">↗</span></button>`).join("")+'</div>';
   html+='</div></div>';content.innerHTML=html;
-  row.innerHTML='<div class="bot-avatar">火</div><div class="message-tools"><button class="reply-action" title="Reply" aria-label="Reply">↶</button></div>';row.querySelector(".reply-action").onclick=()=>{setReply({kind:"bot",text:data.title||data.text||"Bot response"});input.focus();};row.appendChild(content);messages.appendChild(row);scrollBottom();
+  row.innerHTML=botAvatar()+'<div class="message-tools"><button class="reply-action" title="Reply" aria-label="Reply">↶</button></div>';row.querySelector(".reply-action").onclick=()=>{setReply({kind:"bot",text:data.title||data.text||"Bot response"});input.focus();};row.appendChild(content);messages.appendChild(row);scrollBottom();
   if(persist)saveMessage({kind:"bot",response:data}).catch(console.error);
 }
 function renderStoredMessage(item){
-  if(item.kind==="user")addUserMessage(item.text,false);
+  if(item.kind==="user")addUserMessage(item.text,false,item.image||null,item.reply||null);
   else if(item.kind==="bot")renderResponse(item.response,false);
 }
 async function sendMessage(text){
@@ -152,7 +153,7 @@ document.getElementById("exportChat").addEventListener("click",exportConversatio
 document.getElementById("attachButton").addEventListener("click",()=>document.getElementById("imageInput").click());
 document.getElementById("imageInput").addEventListener("change",async e=>{const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){showToast("Pilih file gambar ya");return;}if(file.size>5*1024*1024){showToast("Ukuran gambar maksimal 5 MB");e.target.value="";return;}selectedImage=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});document.getElementById("attachButton").classList.add("has-file");showToast("Gambar siap dikirim");});
 document.getElementById("logoInput").addEventListener("change",e=>{const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){showToast("Pilih gambar logo");return;}const reader=new FileReader();reader.onload=()=>{localStorage.setItem("hutaoCustomLogo",reader.result);applyLogo(reader.result);showToast("Logo 1:1 diperbarui");};reader.readAsDataURL(file);});
-function applyLogo(src){document.querySelectorAll(".brand-image").forEach(el=>{el.innerHTML=`<img src="${src}" alt="Hutao logo">`;});const orb=document.querySelector(".welcome-orb");if(orb)orb.querySelector("img")?.setAttribute("src",src);}
+function applyLogo(src){document.querySelectorAll(".brand-image").forEach(el=>{el.innerHTML=`<img src="${src}" alt="Hutao logo">`;});const orb=document.querySelector(".welcome-orb");if(orb){orb.innerHTML=`<img src="${src}" alt="Hutao Bot"><i></i>`;}document.querySelectorAll(".bot-avatar").forEach(el=>{el.innerHTML=`<img src="${src}" alt="Hutao Bot">`;});}
 
 input.addEventListener("keydown",e=>{if(e.key==="Escape")input.value="";});
 const savedLogo=localStorage.getItem("hutaoCustomLogo");if(savedLogo)applyLogo(savedLogo);
