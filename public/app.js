@@ -3,13 +3,16 @@ const input = document.getElementById("messageInput");
 const messages = document.getElementById("messages");
 const chatArea = document.getElementById("chatArea");
 const welcome = document.getElementById("welcome");
-const userName = "Guest";
+let userName = "Guest";
+let sessionToken = null;
+let accountProfile = null;
 const BOT = { name: "Hutao Bot", version: "1.0.0", description: "Asisten digital untuk menjelajahi tools, downloader, informasi bot, dan fitur komunitas melalui antarmuka chat.", runtimeStarted: Date.now(), role: "USER FREE" };
 let selectedImage = null;
 let replyTarget = null;
 const DB_NAME = "HutaoBotSession";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = "messages";
+const SESSION_STORE = "session";
 document.getElementById("sideUser").textContent = userName;
 
 let db;
@@ -23,11 +26,14 @@ function openDB(){
         const store=database.createObjectStore(STORE,{keyPath:"id",autoIncrement:true});
         store.createIndex("createdAt","createdAt");
       }
+      if(!database.objectStoreNames.contains(SESSION_STORE))database.createObjectStore(SESSION_STORE,{keyPath:"key"});
     };
     request.onsuccess=()=>{db=request.result;resolve(db);};
     request.onerror=()=>reject(request.error);
   });
 }
+function saveSession(session){return new Promise((resolve,reject)=>{const tx=db.transaction(SESSION_STORE,"readwrite");const store=tx.objectStore(SESSION_STORE);if(session)store.put({key:"active",token:session.token,user:session.user});else store.delete("active");tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});}
+function loadSession(){return new Promise((resolve,reject)=>{const req=db.transaction(SESSION_STORE,"readonly").objectStore(SESSION_STORE).get("active");req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});}
 function dbAction(mode,action){
   return new Promise((resolve,reject)=>{
     const tx=db.transaction(STORE,mode);
@@ -104,11 +110,12 @@ async function sendMessage(text){
   const delay=400+Math.random()*600;
   try{
     const [response]=await Promise.all([
-      fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,user:userName,image,reply:reply?{kind:reply.kind,text:reply.text}:null,botInfo:{...BOT,runtime:formatRuntime(Date.now()-BOT.runtimeStarted)}})}),
+      fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,user:userName,sessionToken,image,reply:reply?{kind:reply.kind,text:reply.text}:null,botInfo:{...BOT,runtime:formatRuntime(Date.now()-BOT.runtimeStarted)}})}),
       new Promise(resolve=>setTimeout(resolve,delay))
     ]);
     const data=await response.json();typing.remove();
     if(!response.ok)throw new Error(data.error||"Request failed");
+    if(Object.prototype.hasOwnProperty.call(data,"session")){if(data.session){sessionToken=data.session.token;accountProfile=data.session.user;userName=accountProfile.username||"Guest";}else{sessionToken=null;accountProfile=null;userName="Guest";}await saveSession(data.session);document.getElementById("sideUser").textContent=userName;}
     renderResponse(data.response);
   }catch(err){
     typing.remove();
@@ -161,6 +168,7 @@ const savedLogo=localStorage.getItem("hutaoCustomLogo");if(savedLogo)applyLogo(s
 (async()=>{
   try{
     await openDB();
+    const savedSession=await loadSession();if(savedSession){sessionToken=savedSession.token;accountProfile=savedSession.user;userName=accountProfile?.username||"Guest";document.getElementById("sideUser").textContent=userName;}
     const history=await getMessages();
     if(history.length){welcome.classList.add("hidden");history.forEach(renderStoredMessage);scrollBottom();}
   }catch(error){console.warn("IndexedDB unavailable; chat will be temporary.",error);showToast("Local session storage unavailable");}
