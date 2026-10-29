@@ -16,9 +16,22 @@ const SESSION_STORE = "session";
 document.getElementById("sideUser").textContent = userName;
 
 let db;
+let dbPromise;
 let toastTimer;
+
+// Open IndexedDB once and await readiness before every transaction.
+// This prevents "Cannot read properties of undefined (reading 'transaction')"
+// when a user submits a command before the asynchronous DB open finishes.
 function openDB(){
-  return new Promise((resolve,reject)=>{
+  if(db && db.objectStoreNames.contains(STORE) && db.objectStoreNames.contains(SESSION_STORE)) {
+    return Promise.resolve(db);
+  }
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve,reject)=>{
+    if(!("indexedDB" in window)) {
+      reject(new Error("IndexedDB tidak didukung oleh browser ini."));
+      return;
+    }
     const request=indexedDB.open(DB_NAME,DB_VERSION);
     request.onupgradeneeded=()=>{
       const database=request.result;
@@ -26,29 +39,57 @@ function openDB(){
         const store=database.createObjectStore(STORE,{keyPath:"id",autoIncrement:true});
         store.createIndex("createdAt","createdAt");
       }
-      if(!database.objectStoreNames.contains(SESSION_STORE))database.createObjectStore(SESSION_STORE,{keyPath:"key"});
+      if(!database.objectStoreNames.contains(SESSION_STORE)) {
+        database.createObjectStore(SESSION_STORE,{keyPath:"key"});
+      }
     };
-    request.onsuccess=()=>{db=request.result;resolve(db);};
-    request.onerror=()=>reject(request.error);
+    request.onsuccess=()=>{
+      db=request.result;
+      db.onversionchange=()=>{db.close();db=null;dbPromise=null;};
+      resolve(db);
+    };
+    request.onerror=()=>{dbPromise=null;reject(request.error||new Error("Gagal membuka IndexedDB."));};
+    request.onblocked=()=>console.warn("IndexedDB upgrade blocked by another open tab.");
+  });
+  return dbPromise;
+}
+async function saveSession(session){
+  const database=await openDB();
+  return new Promise((resolve,reject)=>{
+    const tx=database.transaction(SESSION_STORE,"readwrite");
+    const store=tx.objectStore(SESSION_STORE);
+    if(session)store.put({key:"active",token:session.token,user:session.user});
+    else store.delete("active");
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error);
+    tx.onabort=()=>reject(tx.error||new Error("Session transaction aborted."));
   });
 }
-function saveSession(session){return new Promise((resolve,reject)=>{const tx=db.transaction(SESSION_STORE,"readwrite");const store=tx.objectStore(SESSION_STORE);if(session)store.put({key:"active",token:session.token,user:session.user});else store.delete("active");tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});}
-function loadSession(){return new Promise((resolve,reject)=>{const req=db.transaction(SESSION_STORE,"readonly").objectStore(SESSION_STORE).get("active");req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});}
-function dbAction(mode,action){
+async function loadSession(){
+  const database=await openDB();
   return new Promise((resolve,reject)=>{
-    const tx=db.transaction(STORE,mode);
+    const req=database.transaction(SESSION_STORE,"readonly").objectStore(SESSION_STORE).get("active");
+    req.onsuccess=()=>resolve(req.result||null);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function dbAction(mode,action){
+  const database=await openDB();
+  return new Promise((resolve,reject)=>{
+    const tx=database.transaction(STORE,mode);
     const store=tx.objectStore(STORE);
     let result;
     try{result=action(store);}catch(e){reject(e);return;}
     tx.oncomplete=()=>resolve(result);
     tx.onerror=()=>reject(tx.error);
-    tx.onabort=()=>reject(tx.error);
+    tx.onabort=()=>reject(tx.error||new Error("IndexedDB transaction aborted."));
   });
 }
 async function saveMessage(message){return dbAction("readwrite",store=>store.add({...message,createdAt:Date.now()}));}
 async function getMessages(){
+  const database=await openDB();
   return new Promise((resolve,reject)=>{
-    const request=db.transaction(STORE,"readonly").objectStore(STORE).getAll();
+    const request=database.transaction(STORE,"readonly").objectStore(STORE).getAll();
     request.onsuccess=()=>resolve(request.result||[]);
     request.onerror=()=>reject(request.error);
   });
