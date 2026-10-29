@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
-<body>
+<body data-page="home">
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
   <div class="app-shell">
     <aside class="sidebar">
@@ -47,7 +47,7 @@
           <div class="community-heading"><div><span class="card-kicker"><span class="pulse"></span> HUTAO COMMUNITY</span><h2>Community chat</h2><p>Ngobrol bareng anggota Hutao. Pilih ruang obrolan, kirim pesan, atau bagikan foto.</p></div><span class="community-live">● LIVE</span></div>
           <div class="community-rooms" id="communityRooms" role="tablist" aria-label="Community rooms"><button class="room-tab active" data-room="general"># General</button><button class="room-tab" data-room="bot-talk"># Bot Talk</button><button class="room-tab" data-room="media"># Media</button></div>
           <div class="community-room-info"><b id="roomTitle"># general</b><span id="roomDescription">Obrolan umum semua anggota Hutao.</span></div>
-          <div id="communityMessages" class="community-messages"></div>
+          <div id="communityStatus" class="community-status" role="status">Memuat pesan komunitas…</div><div id="communityMessages" class="community-messages"></div>
         </section>
       </section>
       <footer class="composer-wrap">
@@ -56,6 +56,12 @@
       </footer>
     </main>
   </div>
+  <nav class="mobile-nav" aria-label="Navigasi utama">
+    <a href="/home.html" data-page-link="home"><span>⌂</span><small>Home</small></a>
+    <a href="/hutao.html" data-page-link="hutao"><span>火</span><small>Hutao</small></a>
+    <a href="/community.html" data-page-link="community"><span>◎</span><small>Community</small></a>
+    <button type="button" id="mobileProfileButton"><span>◉</span><small>Profile</small></button>
+  </nav>
   <div class="modal-backdrop" id="settingsModal" hidden>
     <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
       <div class="settings-head"><div><div class="card-kicker">HUTAO CONTROL</div><h2 id="settingsTitle">Chat settings</h2></div><button class="icon-button" id="closeSettings" aria-label="Close settings">×</button></div>

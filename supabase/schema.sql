@@ -44,3 +44,6 @@ create index if not exists hutao_community_created_idx on public.hutao_community
 -- Safe migration when upgrading an existing V6 database.
 alter table public.hutao_community_messages add column if not exists room text not null default 'general';
 create index if not exists hutao_community_room_created_idx on public.hutao_community_messages(room, created_at desc);
+
+-- Refresh PostgREST's schema cache so newly-created tables are immediately discoverable.
+NOTIFY pgrst, 'reload schema';

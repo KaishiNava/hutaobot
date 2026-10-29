@@ -20,7 +20,7 @@ async function db(pathname, options = {}) {
   });
   const body = await response.text();
   let data; try { data = body ? JSON.parse(body) : null; } catch { data = body; }
-  if (!response.ok) throw new Error(data?.message || data?.hint || 'Supabase request failed');
+  if (!response.ok) { const message = data?.message || data?.hint || 'Supabase request failed'; if (response.status === 404 || /schema cache|could not find the table/i.test(message)) throw new Error(`${message}. Jalankan file supabase/schema.sql di Supabase SQL Editor, lalu reload schema cache (NOTIFY pgrst, 'reload schema').`); throw new Error(message); }
   return data;
 }
 async function loadCommands() {

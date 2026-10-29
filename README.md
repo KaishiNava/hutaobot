@@ -43,3 +43,20 @@ npm start
 - Community includes shared rooms: `general`, `bot-talk`, and `media`. Messages are filtered by room on the server.
 - Run the updated `supabase/schema.sql` after deploying; it includes a safe `ALTER TABLE ... ADD COLUMN IF NOT EXISTS room` migration for existing V6 databases.
 - Private bot conversation remains stored in IndexedDB per browser; shared community messages live in Supabase SQL.
+
+## V6.2 — Mobile-first pages and Supabase community fix
+
+This update ships separate entry pages (all share the same app bundle and IndexedDB session):
+
+- `/home.html` — community home/workspace
+- `/hutao.html` — private Hutao bot chat
+- `/community.html` — shared community rooms
+- `/` — home fallback
+
+Mobile now uses a compact bottom navigation instead of forcing the desktop sidebar into a narrow viewport. Chat composer and community messages are sized for phone viewports, including safe-area spacing.
+
+### Fix: `Could not find the table public.hutao_community_messages in the schema cache`
+
+This message means the Supabase REST API does not see the table. From Supabase Dashboard → SQL Editor, run the **entire** `supabase/schema.sql` file. It creates the community table and indexes, then sends `NOTIFY pgrst, 'reload schema'` to refresh PostgREST's schema cache. Confirm that `public.hutao_community_messages` exists in Table Editor. Then redeploy/restart the Node backend if needed and reload the website.
+
+The API now gives a more explicit setup hint for missing-table/schema-cache errors. Never put the Supabase service-role key in browser code; it belongs only in the backend environment.

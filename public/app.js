@@ -224,6 +224,11 @@ const savedLogo=localStorage.getItem("hutaoCustomLogo");if(savedLogo)applyLogo(s
     const savedSession=await loadSession();if(savedSession){sessionToken=savedSession.token;accountProfile=savedSession.user;userName=accountProfile?.username||"Guest";document.getElementById("sideUser").textContent=userName;updateAccountUI(); try{const me=await fetch("/api/auth/me",{headers:{Authorization:`Bearer ${sessionToken}`}});if(me.ok){const md=await me.json();accountProfile=md.user;userName=md.user.username;updateAccountUI();}else{sessionToken=null;accountProfile=null;await saveSession(null);}}catch{}}
     const history=await getMessages();
     if(history.length){welcome.classList.add("hidden");history.forEach(renderStoredMessage);scrollBottom();}
+    const page=document.body.dataset.page || (location.pathname.endsWith('community.html')?'community':location.pathname.endsWith('hutao.html')?'hutao':'home');
+    document.querySelectorAll('[data-page-link]').forEach(link=>link.classList.toggle('active',link.dataset.pageLink===page));
+    if(sessionToken && page==='community')openCommunity();
+    else if(sessionToken && page==='hutao')openBotChat();
+    else if(sessionToken && page==='profile')openProfilePage();
     if(!sessionToken){showAuth('login');document.getElementById('authClose').hidden=true;}
   }catch(error){console.warn("IndexedDB unavailable; chat will be temporary.",error);showToast("Local session storage unavailable");showAuth('login');document.getElementById('authClose').hidden=true;}
 })();
@@ -277,8 +282,14 @@ async function loadCommunityMessages(){
   try{const r=await fetch(`/api/community/messages?room=${encodeURIComponent(activeCommunityRoom)}`,{headers:{Authorization:`Bearer ${sessionToken}`},cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'Gagal memuat komunitas');
     const box=document.getElementById('communityMessages');const atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<100;
     box.innerHTML=(d.messages||[]).map(m=>`<article class="community-message ${m.user_id===accountProfile?.id?'mine':''}"><div class="community-message-head"><b>${escapeHTML(m.username)}</b><span>${escapeHTML(m.role||'USER FREE')}</span><time>${new Date(m.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</time></div>${m.image?`<img class="community-image" src="${escapeHTML(m.image)}" alt="Shared image" loading="lazy">`:''}${m.text?`<p>${escapeHTML(m.text)}</p>`:''}</article>`).join('');
+    const status=document.getElementById('communityStatus');status.classList.remove('is-error');status.textContent=(d.messages||[]).length?'':'Belum ada pesan di ruang ini. Jadilah yang pertama mengobrol!';
     if(atBottom)box.scrollTop=box.scrollHeight;
-  }catch(e){console.debug('Community refresh:',e.message);}
+  }catch(e){
+    console.warn('Community refresh:',e.message);
+    const status=document.getElementById('communityStatus');
+    status.textContent=/hutao_community_messages|schema cache|does not exist/i.test(e.message) ? 'Tabel komunitas belum terpasang di Supabase. Jalankan supabase/schema.sql lalu reload schema API.' : `Komunitas gagal dimuat: ${e.message}`;
+    status.classList.add('is-error');
+  }
 }
 document.getElementById('authOpen').addEventListener('click',()=>showAuth());
 document.getElementById('authClose').addEventListener('click',()=>{if(!sessionToken){showToast('Login atau daftar dulu untuk membuka Hutao Community.');return;}closeAuth();});
@@ -287,6 +298,7 @@ document.getElementById('loginTab').addEventListener('click',()=>setAuthMode('lo
 document.getElementById('registerTab').addEventListener('click',()=>setAuthMode('register'));
 document.getElementById('authForm').addEventListener('submit',authSubmit);
 document.getElementById('communityButton').addEventListener('click',openCommunity);
+document.getElementById('mobileProfileButton').addEventListener('click',openProfilePage);
 document.getElementById('newChat').addEventListener('click',()=>{openBotChat();clearConversation();});
 function openProfilePage(){
   if(!sessionToken||!accountProfile){showAuth('login');return;}
