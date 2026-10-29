@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b0a0d">
+  <title>Hutao Bot — Web Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">火</div><div><b>HUTAO<span>.</span></b><small>BOT INTERFACE</small></div></div>
+      <div class="side-label">WORKSPACE</div>
+      <button class="side-item active" id="newChat"><span class="side-icon">✦</span> New conversation <span class="plus">＋</span></button>
+      <button class="side-item" data-command=".menu"><span class="side-icon">▤</span> Bot menu</button>
+      <button class="side-item" data-command=".help"><span class="side-icon">⌘</span> Command guide</button>
+      <div class="side-bottom">
+        <div class="mini-status"><span class="pulse"></span><div><b>Systems online</b><small>Hutao Core · v1.0.0</small></div></div>
+        <div class="profile-mini"><div class="avatar">K</div><div><b id="sideUser">Guest User</b><small>Web session</small></div><span class="dots">•••</span></div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div class="mobile-brand"><span class="brand-mark">火</span> HUTAO<span>.</span></div><div class="breadcrumb"><span>Workspace</span><i>/</i><b>Chat</b></div><div class="top-actions"><span class="secure"><span class="pulse"></span> LIVE</span><button class="icon-button" title="Settings">⚙</button></div></header>
+      <section class="chat-area" id="chatArea">
+        <div class="welcome" id="welcome">
+          <div class="welcome-orb"><span>火</span><i></i></div>
+          <div class="eyebrow"><span class="pulse"></span> YOUR DIGITAL COMPANION</div>
+          <h1>Let's make it<br><em>interesting.</em></h1>
+          <p>Chat with Hutao Bot. Try a command, explore the menu, and see what we can do together.</p>
+          <div class="suggestions"><button data-command=".menu"><span>✦</span> Open bot menu <b>↗</b></button><button data-command=".ping"><span>⌁</span> Check bot status <b>↗</b></button><button data-command=".help"><span>⌘</span> Explore commands <b>↗</b></button></div>
+        </div>
+        <div class="messages" id="messages" aria-live="polite"></div>
+      </section>
+      <footer class="composer-wrap">
+        <form class="composer" id="chatForm"><button type="button" class="attach" title="Add">＋</button><input id="messageInput" autocomplete="off" placeholder="Message Hutao Bot... try .menu" aria-label="Message Hutao Bot"><button class="send-button" type="submit" aria-label="Send message">↗</button></form>
+        <div class="composer-note">HUTAO BOT MAY MAKE MISTAKES · <span>MADE FOR THE WEB</span></div>
+      </footer>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

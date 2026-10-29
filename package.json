@@ -1,0 +1,9 @@
+{
+  "name": "hutao-bot-web",
+  "version": "1.0.0",
+  "description": "Hutao Bot — premium web chat with a Node.js command plugin system",
+  "main": "server.js",
+  "scripts": { "start": "node server.js", "dev": "node --watch server.js" },
+  "dependencies": { "express": "^4.21.2" },
+  "engines": { "node": ">=18" }
+}
