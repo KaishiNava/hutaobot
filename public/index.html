@@ -25,7 +25,7 @@
       </div>
     </aside>
     <main class="main">
-      <header class="topbar"><div class="mobile-brand"><span class="brand-mark">火</span> HUTAO<span>.</span></div><div class="breadcrumb"><span>Workspace</span><i>/</i><b>Chat</b></div><div class="top-actions"><span class="secure"><span class="pulse"></span> LIVE</span><button class="icon-button" title="Settings">⚙</button></div></header>
+      <header class="topbar"><div class="mobile-brand"><span class="brand-mark">火</span> HUTAO<span>.</span></div><div class="breadcrumb"><span>Workspace</span><i>/</i><b>Chat</b></div><div class="top-actions"><span class="secure"><span class="pulse"></span> LIVE</span><button class="icon-button" id="settingsButton" title="Settings" aria-label="Settings">⚙</button></div></header>
       <section class="chat-area" id="chatArea">
         <div class="welcome" id="welcome">
           <div class="welcome-orb"><span>火</span><i></i></div>
@@ -42,6 +42,16 @@
       </footer>
     </main>
   </div>
+  <div class="modal-backdrop" id="settingsModal" hidden>
+    <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="settings-head"><div><div class="card-kicker">HUTAO CONTROL</div><h2 id="settingsTitle">Chat settings</h2></div><button class="icon-button" id="closeSettings" aria-label="Close settings">×</button></div>
+      <p class="settings-description">Atur penyimpanan chat dan kelola sesi browser kamu.</p>
+      <div class="setting-row"><div><b>Session storage</b><small>Riwayat chat disimpan di IndexedDB pada perangkat ini.</small></div><span class="setting-badge">LOCAL</span></div>
+      <div class="settings-actions"><button class="setting-action" id="exportChat">⇩ Export chat</button><button class="setting-action" id="clearChat">⌫ Clear conversation</button><button class="setting-action danger" id="clearCache">♲ Clear local data</button></div>
+      <div class="settings-foot">Clear local data akan menghapus riwayat dan data sesi lokal Hutao Bot dari browser ini.</div>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
   <script src="/app.js"></script>
 </body>
 </html>
