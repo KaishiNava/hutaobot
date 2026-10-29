@@ -5,9 +5,11 @@ module.exports = {
       type: "menu",
       title: "Welcome to Hutao Bot",
       marquee: "WELCOME TO HUTAO BOT  ✦  YOUR LITTLE DIGITAL COMPANION",
-      text: `Halo, ${user}! 👋\nAku Hutao Bot — tempat kamu menjelajahi tools, info, dan fitur seru dalam satu chat. Pilih sesuatu di bawah untuk mulai.`,
+      text: `Halo, ${user}! 👋\nAku Hutao Bot, asisten digital dengan fitur downloader, tools, informasi akun, dan menu interaktif dalam satu ruang chat. Gunakan tombol di bawah atau ketik command seperti .help.\n\nBot dibuat agar pengalaman chat terasa praktis, responsif, dan mudah dijelajahi.`,
       thumbnail: "https://zfile.web.id/PK7vk7B.jpg",
       user,
+      botInfo: { name: "Hutao Bot", version: "1.0.0", role: "USER FREE", runtime: "Live session" },
+      stats: [{ label: "ACCOUNT", value: user }, { label: "ACCESS", value: "USER FREE" }, { label: "BOT VERSION", value: "v1.0.0" }, { label: "RUNTIME", value: "LIVE" }],
       accent: "ember",
       buttons: [
         { label: "Downloader", command: ".downloader", icon: "⇩", color: "violet" },
