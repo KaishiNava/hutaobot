@@ -59,6 +59,64 @@ async function grantExp(user, amount, event) {
   await db('hutao_game_events', { method: 'POST', body: JSON.stringify({ user_id: user.id, event, exp_delta: amount }) });
   return { ...user, exp: next, level: Math.floor(next / 100) + 1 };
 }
+
+function bearer(req) { return String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim(); }
+async function requireAccount(req) { return getSession(bearer(req)); }
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const username = String(req.body?.username || '').trim();
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = String(req.body?.password || '');
+    if (!/^[a-zA-Z0-9_]{3,24}$/.test(username)) return res.status(400).json({ error: 'Username harus 3–24 karakter (huruf, angka, underscore).' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Email tidak valid.' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password minimal 8 karakter.' });
+    const existing = await db(`hutao_users?or=(username.eq.${encodeURIComponent(username)},email.eq.${encodeURIComponent(email)})&select=id`);
+    if (existing.length) return res.status(409).json({ error: 'Username atau email sudah digunakan.' });
+    const rows = await db('hutao_users', { method: 'POST', body: JSON.stringify({ username, email, password_hash: await passwordHash(password), role: 'USER FREE', exp: 0 }) });
+    const session = await makeSession(rows[0]);
+    return res.status(201).json({ session });
+  } catch (e) { console.error('Web register:', e.message); return res.status(500).json({ error: e.message || 'Registrasi gagal.' }); }
+});
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase(); const password = String(req.body?.password || '');
+    if (!email || !password) return res.status(400).json({ error: 'Isi email dan password.' });
+    const rows = await db(`hutao_users?email=eq.${encodeURIComponent(email)}&select=id,username,email,password_hash,role,exp`);
+    if (!rows.length || !(await verifyPassword(password, rows[0].password_hash))) return res.status(401).json({ error: 'Email atau password tidak cocok.' });
+    await db(`hutao_users?id=eq.${rows[0].id}`, { method: 'PATCH', body: JSON.stringify({ last_login_at: new Date().toISOString() }) });
+    return res.json({ session: await makeSession(rows[0]) });
+  } catch (e) { console.error('Web login:', e.message); return res.status(500).json({ error: e.message || 'Login gagal.' }); }
+});
+app.get('/api/auth/me', async (req, res) => {
+  try { const user = await requireAccount(req); if (!user) return res.status(401).json({ error: 'Sesi tidak valid.' }); return res.json({ user }); }
+  catch (e) { return res.status(500).json({ error: e.message || 'Gagal memuat profil.' }); }
+});
+app.post('/api/auth/logout', async (req, res) => {
+  try { const token = bearer(req); if (token) { const hash = crypto.createHash('sha256').update(token).digest('hex'); await db(`hutao_sessions?token_hash=eq.${encodeURIComponent(hash)}`, { method: 'DELETE', prefer: 'return=minimal' }); } return res.json({ ok: true }); }
+  catch (e) { return res.status(500).json({ error: e.message || 'Logout gagal.' }); }
+});
+app.get('/api/community/messages', async (req, res) => {
+  try {
+    const user = await requireAccount(req); if (!user) return res.status(401).json({ error: 'Login diperlukan.' });
+    const before = req.query.before ? encodeURIComponent(req.query.before) : null;
+    const room = ['general','bot-talk','media'].includes(String(req.query.room || 'general')) ? String(req.query.room || 'general') : 'general';
+    const q = `hutao_community_messages?room=eq.${encodeURIComponent(room)}&select=id,user_id,username,role,text,image,room,created_at&order=created_at.desc&limit=60${before ? `&created_at=lt.${before}` : ''}`;
+    const rows = await db(q); return res.json({ messages: rows.reverse() });
+  } catch (e) { return res.status(500).json({ error: e.message || 'Gagal memuat komunitas.' }); }
+});
+app.post('/api/community/messages', async (req, res) => {
+  try {
+    const user = await requireAccount(req); if (!user) return res.status(401).json({ error: 'Login diperlukan.' });
+    const room = ['general','bot-talk','media'].includes(String(req.body?.room || 'general')) ? String(req.body?.room || 'general') : 'general';
+    const text = String(req.body?.text || '').trim(); const image = typeof req.body?.image === 'string' && /^data:image\/(png|jpeg|webp|gif);base64,/.test(req.body.image) ? req.body.image : null;
+    if (!text && !image) return res.status(400).json({ error: 'Tulis pesan atau pilih gambar.' });
+    if (text.length > 2000) return res.status(400).json({ error: 'Pesan maksimal 2000 karakter.' });
+    if (image && image.length > 6 * 1024 * 1024) return res.status(413).json({ error: 'Gambar terlalu besar. Maksimal sekitar 4 MB.' });
+    const rows = await db('hutao_community_messages', { method: 'POST', body: JSON.stringify({ user_id: user.id, username: user.username, role: user.role, text, image, room }) });
+    return res.status(201).json({ message: rows[0] });
+  } catch (e) { return res.status(500).json({ error: e.message || 'Gagal mengirim pesan komunitas.' }); }
+});
+
 app.get('/api/health', (_req, res) => res.json({ ok: true, name: 'Hutao Bot', version: '1.1.0', runtime: process.uptime(), database: dbReady() ? 'configured' : 'not-configured' }));
 function wibClock() { const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date()); return Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value])); }
 app.get('/api/daily-message', (_req, res) => { const now = wibClock(); const day = `${now.year}-${now.month}-${now.day}`; const active = Number(now.hour) === 17 && Number(now.minute) <= 2; res.json({ active, day, timeZone: 'Asia/Jakarta', message: { title: 'Selamat Sore 🌇', text: 'Selamat sore! Semoga hari ini sudah memberi banyak hal baik untukmu. Kalau mulai lelah, jangan lupa istirahat sebentar, tarik napas, minum air, dan beri waktu untuk diri sendiri. Kamu nggak harus menyelesaikan semuanya sekaligus. Pelan-pelan saja—semoga soremu terasa hangat dan tenang. ✨', accent: 'ember', stats: [{ label: 'DAILY GREETING', value: '17:00 WIB' }] } }); });

@@ -1,67 +1,45 @@
-# Hutao Bot Web — K-Frame Hybrid Chat (v1.1)
+# Hutao Bot Web — Account + Community Update
 
-Premium dark chat UI with custom bot cards, animated typing, colorful buttons, Node.js command plugins, and browser-local chat session persistence.
+Premium dark web chat with web-based account registration/login, per-browser IndexedDB chat history, account profile, and a shared community room backed by Supabase SQL.
 
-## Requirements
-- Node.js 18+
-- npm
-- Supabase project (SQL database)
+## Architecture
+
+- **Supabase SQL**: user accounts, password hashes, server-side sessions, EXP/game data, and shared community messages.
+- **IndexedDB**: private bot-chat history and the active session token in each browser. Clearing browser data can remove local chat history; the server session itself expires after 30 days or can be revoked with logout.
+- **Community**: shared messages are persisted in Supabase and refreshed from the server. This is shared between authenticated users, unlike the private bot conversation history.
+- **Images**: community image attachments are stored as data URLs in the SQL message row for this starter implementation. For production scale, move image bytes to a Supabase Storage bucket and save only the object URL in SQL.
+- **Secrets**: the Supabase service-role key is server-only. Never expose it in `public/`.
+
+## Setup
+
+1. Create a Supabase project.
+2. Run `supabase/schema.sql` in Supabase SQL Editor. This creates account/session/game tables and the shared community message table.
+3. Set Railway/server environment variables:
+   - `SUPABASE_URL=https://<project-ref>.supabase.co`
+   - `SUPABASE_SERVICE_ROLE_KEY=<server-only service role key>`
+4. Deploy the Node server on Railway or another Node host. The Express server must remain available for auth and community API calls. Vercel static-only hosting will not run this server without a separate backend deployment and API URL configuration.
+5. Open the site; web login/register is available from the account panel. Users can register/login using the form. `.daftar` and `.login` in chat open the web form instead.
 
 ## Run locally
-```bash
+
+```sh
 npm install
 npm start
 ```
-Open `http://localhost:3000`.
 
-## Included features
-- Custom response cards with image thumbnail and marquee
-- Interactive command buttons
-- Typing indicator and smooth scroll
-- Command plugin architecture
-- Chat history saved in IndexedDB (persists after refresh/browser restart on this device)
-- Settings panel: export chat JSON, clear conversation, clear local data/cache
-- Responsive mobile and desktop layout
+## Notes
 
-## Supabase accounts, level and EXP
-1. In Supabase, open **SQL Editor** and run `supabase/schema.sql`.
-2. Set these server environment variables (Railway → Variables):
-   - `SUPABASE_URL` — project URL
-   - `SUPABASE_SERVICE_ROLE_KEY` — service-role key (server-only; never add it to frontend code or commit it)
-3. Redeploy the server.
+- Usernames: 3–24 characters, letters/numbers/underscore.
+- Passwords: at least 8 characters; stored using scrypt hashes.
+- Sessions: random opaque tokens, stored hashed in SQL, 30-day expiry.
+- Private chat history is local to the browser's IndexedDB. Community messages are shared server-side.
+- This starter version uses polling for community updates; realtime Supabase subscriptions can be added later.
 
-Chat commands:
-- `.daftar username,email,password` — create account; password must be at least 8 characters.
-- `.login email,password` — login.
-- `.logout` — revoke the current server session.
-- `.profile` or `.level` — inspect account role, level and EXP.
-- `.game` — mini quiz; `.jawab 56` gives +20 EXP for the demo quiz.
 
-Level formula: `floor(total EXP / 100) + 1`. The session token and chat history remain in IndexedDB on this browser. Supabase stores account, EXP and hashed session token; password is stored as a salted scrypt hash. This starter account system should be hardened with rate limiting, email verification, password reset and abuse controls before public production use.
+## V6.1 Community workspace update
 
-## Add a command
-Create a `.js` file inside `commands/` and export a `name` (or `names`) plus an async `execute()` returning a response object.
-```js
-module.exports = {
-  name: "hello",
-  async execute({ user, args }) {
-    return {
-      type: "card",
-      title: "Hello!",
-      text: `Hi ${user}`,
-      accent: "cyan",
-      buttons: [{ label: "Main menu", command: ".menu", icon: "✦" }]
-    };
-  }
-};
-```
-Supported response fields: `title`, `text`, `thumbnail`, `marquee`, `user`, `stats`, `buttons`, `accent`.
-
-## Deploy
-Deploy the Node app to Railway (set start command to `npm start`). Railway provides the `PORT` environment variable. Express serves the frontend from `public/`, so this can be deployed as one service.
-
-## Storage / privacy
-Chat history is stored in IndexedDB in the current browser profile and is not synced across devices. Clearing local data removes the browser's stored chat and available Cache Storage entries. Export chat downloads a JSON file. Chat history is local to the browser; account identity, account progression and EXP are stored in Supabase.
-
-## Important
-This is a starter/demo rather than a production-ready multi-user platform. Add authentication, server-side rate limits, authorization, and database storage before making it public. Downloader/tools are UI placeholders until provider integrations are added.
+- Authentication form is surfaced immediately for users without a valid session; closing the gate is disabled until login/register succeeds.
+- Account profile now has its own profile page with role, level, EXP progress, and logout.
+- Community includes shared rooms: `general`, `bot-talk`, and `media`. Messages are filtered by room on the server.
+- Run the updated `supabase/schema.sql` after deploying; it includes a safe `ALTER TABLE ... ADD COLUMN IF NOT EXISTS room` migration for existing V6 databases.
+- Private bot conversation remains stored in IndexedDB per browser; shared community messages live in Supabase SQL.

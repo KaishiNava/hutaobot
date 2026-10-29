@@ -18,14 +18,16 @@
       <div class="side-label">WORKSPACE</div>
       <button class="side-item active" id="newChat"><span class="side-icon">✦</span> New conversation <span class="plus">＋</span></button>
       <button class="side-item" data-command=".menu"><span class="side-icon">▤</span> Bot menu</button>
+      <button class="side-item" id="communityButton"><span class="side-icon">◎</span> Community chat</button>
+      <button class="side-item" id="profileButton"><span class="side-icon">◉</span> My profile</button>
       <button class="side-item" data-command=".help"><span class="side-icon">⌘</span> Command guide</button>
       <div class="side-bottom">
         <div class="mini-status"><span class="pulse"></span><div><b>Systems online</b><small>Hutao Core · v1.0.0</small></div></div>
-        <div class="profile-mini"><div class="avatar">K</div><div><b id="sideUser">Guest User</b><small>Web session</small></div><span class="dots">•••</span></div>
+        <div class="profile-mini"><div class="avatar" id="sideAvatar">G</div><div><b id="sideUser">Guest User</b><small id="sideRole">Guest · local</small></div><button class="dots" id="authOpen" title="Account">•••</button></div>
       </div>
     </aside>
     <main class="main">
-      <header class="topbar"><div class="mobile-brand"><span class="brand-mark brand-image" id="mobileBrand"><img src="/logo.png" alt="Hutao logo" onerror="this.style.display='none';this.parentElement.textContent='火'"></span> HUTAO<span>.</span></div><div class="breadcrumb"><span>Workspace</span><i>/</i><b>Chat</b></div><div class="top-actions"><span class="secure"><span class="pulse"></span> LIVE</span><button class="icon-button" id="settingsButton" title="Settings" aria-label="Settings">⚙</button></div></header>
+      <header class="topbar"><div class="mobile-brand"><span class="brand-mark brand-image" id="mobileBrand"><img src="/logo.png" alt="Hutao logo" onerror="this.style.display='none';this.parentElement.textContent='火'"></span> HUTAO<span>.</span></div><div class="breadcrumb" id="breadcrumb"><span>Workspace</span><i>/</i><b>Chat</b></div><div class="top-actions"><span class="secure"><span class="pulse"></span> LIVE</span><button class="icon-button" id="settingsButton" title="Settings" aria-label="Settings">⚙</button></div></header>
       <section class="chat-area" id="chatArea">
         <div class="welcome" id="welcome">
           <div class="welcome-orb"><img src="/logo.png" alt="Hutao Bot" onerror="this.style.display='none';this.parentElement.insertAdjacentHTML('afterbegin','<span>火</span>')"><i></i></div>
@@ -35,6 +37,18 @@
           <div class="suggestions"><button data-command=".menu"><span>✦</span> Open bot menu <b>↗</b></button><button data-command=".ping"><span>⌁</span> Check bot status <b>↗</b></button><button data-command=".help"><span>⌘</span> Explore commands <b>↗</b></button></div>
         </div>
         <div class="messages" id="messages" aria-live="polite"></div>
+        <section class="profile-view" id="profileView" hidden>
+          <div class="profile-hero"><div class="profile-avatar-large" id="profileAvatarLarge">H</div><div><span class="card-kicker"><span class="pulse"></span> ACCOUNT CENTER</span><h2 id="profilePageName">Your profile</h2><p>Profil akun Hutao yang tersinkron dengan database.</p></div><span class="profile-role-pill" id="profileRolePill">USER FREE</span></div>
+          <div class="profile-stat-grid"><div><small>USERNAME</small><b id="profileUsername">—</b></div><div><small>EMAIL</small><b id="profileEmail">—</b></div><div><small>LEVEL</small><b id="profileLevel">1</b></div><div><small>TOTAL EXP</small><b id="profileExp">0</b></div></div>
+          <div class="profile-progress"><div><span>LEVEL PROGRESS</span><b id="profileProgressText">0 / 100 EXP</b></div><div class="progress-track"><i id="profileProgressBar"></i></div></div>
+          <div class="profile-actions"><button id="profileLogout" class="profile-logout">↪ Log out</button><button id="profileBackChat" class="profile-back">Back to Hutao Chat</button></div>
+        </section>
+        <section class="community-view" id="communityView" hidden>
+          <div class="community-heading"><div><span class="card-kicker"><span class="pulse"></span> HUTAO COMMUNITY</span><h2>Community chat</h2><p>Ngobrol bareng anggota Hutao. Pilih ruang obrolan, kirim pesan, atau bagikan foto.</p></div><span class="community-live">● LIVE</span></div>
+          <div class="community-rooms" id="communityRooms" role="tablist" aria-label="Community rooms"><button class="room-tab active" data-room="general"># General</button><button class="room-tab" data-room="bot-talk"># Bot Talk</button><button class="room-tab" data-room="media"># Media</button></div>
+          <div class="community-room-info"><b id="roomTitle"># general</b><span id="roomDescription">Obrolan umum semua anggota Hutao.</span></div>
+          <div id="communityMessages" class="community-messages"></div>
+        </section>
       </section>
       <footer class="composer-wrap">
         <form class="composer" id="chatForm"><button type="button" class="attach" id="attachButton" title="Attach image">＋</button><input type="file" id="imageInput" accept="image/*" hidden><input id="messageInput" autocomplete="off" placeholder="Message Hutao Bot... try .menu" aria-label="Message Hutao Bot"><button class="send-button" type="submit" aria-label="Send message">↗</button></form>
@@ -51,6 +65,7 @@
       <div class="settings-foot">Clear local data akan menghapus riwayat dan data sesi lokal Hutao Bot dari browser ini.</div>
     </section>
   </div>
+  <div class="auth-backdrop" id="authBackdrop" hidden><section class="auth-panel" role="dialog" aria-modal="true"><button class="icon-button auth-close" id="authClose" aria-label="Close">×</button><div class="card-kicker"><span class="pulse"></span> HUTAO ACCOUNT</div><h2 id="authTitle">Welcome back</h2><p id="authDesc">Login untuk menyimpan profil dan bergabung ke komunitas.</p><div class="auth-tabs"><button class="active" id="loginTab">Login</button><button id="registerTab">Daftar</button></div><form id="authForm"><label id="usernameField" hidden>Username<input id="authUsername" minlength="3" maxlength="24" autocomplete="username"></label><label>Email<input id="authEmail" type="email" required autocomplete="email"></label><label>Password<input id="authPassword" type="password" minlength="8" required autocomplete="current-password"></label><button class="auth-submit" type="submit" id="authSubmit">Login ke Hutao</button><small id="authError" role="alert"></small></form></section></div>
   <div class="toast" id="toast" role="status"></div>
   <script src="/app.js"></script>
 </body>

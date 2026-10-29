@@ -144,8 +144,20 @@ function renderStoredMessage(item){
 }
 async function sendMessage(text){
   text=String(text||"").trim();if(!text&&!selectedImage)return;
+  if(/^\.daftar(?:\s|$)/i.test(text)){showAuth('register');showToast('Daftar melalui form web ya');return;}
+  if(/^\.login(?:\s|$)/i.test(text)){showAuth('login');showToast('Login melalui form web ya');return;}
+  if(/^\.logout$/i.test(text)&&sessionToken){try{await fetch('/api/auth/logout',{method:'POST',headers:{Authorization:`Bearer ${sessionToken}`}});}catch{}sessionToken=null;accountProfile=null;userName='Guest';await saveSession(null);updateAccountUI();showToast('Logout berhasil');return;}
   const image=selectedImage;const reply=replyTarget;
   input.value="";selectedImage=null;document.getElementById("imageInput").value="";document.getElementById("attachButton").classList.remove("has-file");setReply(null);
+  if (communityMode) {
+    if (!sessionToken) { showAuth(); showToast("Login dulu untuk mengirim pesan komunitas"); return; }
+    try {
+      const r=await fetch('/api/community/messages',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${sessionToken}`},body:JSON.stringify({text,image,room:activeCommunityRoom})});
+      const d=await r.json(); if(!r.ok)throw new Error(d.error||'Gagal mengirim pesan');
+      await loadCommunityMessages();
+    } catch(e) { showToast(e.message); }
+    return;
+  }
   addUserMessage(text||"",true,image,reply);
   const typing=addTyping();
   const delay=400+Math.random()*600;
@@ -209,11 +221,95 @@ const savedLogo=localStorage.getItem("hutaoCustomLogo");if(savedLogo)applyLogo(s
 (async()=>{
   try{
     await openDB();
-    const savedSession=await loadSession();if(savedSession){sessionToken=savedSession.token;accountProfile=savedSession.user;userName=accountProfile?.username||"Guest";document.getElementById("sideUser").textContent=userName;}
+    const savedSession=await loadSession();if(savedSession){sessionToken=savedSession.token;accountProfile=savedSession.user;userName=accountProfile?.username||"Guest";document.getElementById("sideUser").textContent=userName;updateAccountUI(); try{const me=await fetch("/api/auth/me",{headers:{Authorization:`Bearer ${sessionToken}`}});if(me.ok){const md=await me.json();accountProfile=md.user;userName=md.user.username;updateAccountUI();}else{sessionToken=null;accountProfile=null;await saveSession(null);}}catch{}}
     const history=await getMessages();
     if(history.length){welcome.classList.add("hidden");history.forEach(renderStoredMessage);scrollBottom();}
-  }catch(error){console.warn("IndexedDB unavailable; chat will be temporary.",error);showToast("Local session storage unavailable");}
+    if(!sessionToken){showAuth('login');document.getElementById('authClose').hidden=true;}
+  }catch(error){console.warn("IndexedDB unavailable; chat will be temporary.",error);showToast("Local session storage unavailable");showAuth('login');document.getElementById('authClose').hidden=true;}
 })();
+
+
+// Web account + shared community workspace. Private bot history remains in this browser's IndexedDB.
+let authMode = 'login';
+let communityMode = false;
+let activeCommunityRoom = 'general';
+let communityTimer = null;
+let lastCommunityId = null;
+function updateAccountUI(){
+  const sideUser=document.getElementById('sideUser'); const role=document.getElementById('sideRole'); const avatar=document.getElementById('sideAvatar');
+  if(sideUser)sideUser.textContent=accountProfile?.username||'Guest User';
+  if(role)role.textContent=accountProfile?`${accountProfile.role} · Level ${accountProfile.level||1}`:'Guest · local';
+  if(avatar)avatar.textContent=(accountProfile?.username||'G').slice(0,1).toUpperCase();
+}
+function showAuth(mode=authMode){authMode=mode;document.getElementById('authBackdrop').hidden=false;setAuthMode(mode);}
+function closeAuth(){document.getElementById('authBackdrop').hidden=true;}
+function setAuthMode(mode){
+  authMode=mode;const register=mode==='register';
+  document.getElementById('authTitle').textContent=register?'Create your account':'Welcome back';
+  document.getElementById('authDesc').textContent=register?'Daftar sekali, lalu gunakan Hutao dan komunitas dengan profil yang sama.':'Login untuk memulihkan akun dan bergabung ke komunitas.';
+  document.getElementById('usernameField').hidden=!register;
+  document.getElementById('authUsername').required=register;
+  document.getElementById('authPassword').autocomplete=register?'new-password':'current-password';
+  document.getElementById('authSubmit').textContent=register?'Buat akun':'Login ke Hutao';
+  document.getElementById('loginTab').classList.toggle('active',!register);document.getElementById('registerTab').classList.toggle('active',register);
+  document.getElementById('authError').textContent='';
+}
+async function authSubmit(e){
+  e.preventDefault();const error=document.getElementById('authError');error.textContent='';
+  const payload={email:document.getElementById('authEmail').value.trim(),password:document.getElementById('authPassword').value};
+  if(authMode==='register')payload.username=document.getElementById('authUsername').value.trim();
+  const button=document.getElementById('authSubmit');button.disabled=true;button.textContent='Please wait…';
+  try{const r=await fetch(`/api/auth/${authMode}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok)throw new Error(d.error||'Authentication failed');
+    sessionToken=d.session.token;accountProfile=d.session.user;userName=accountProfile.username;await saveSession(d.session);updateAccountUI();closeAuth();document.getElementById('authClose').hidden=false;showToast(authMode==='register'?'Akun berhasil dibuat!':'Login berhasil!');
+    if(communityMode)await loadCommunityMessages();
+  }catch(err){error.textContent=err.message;}finally{button.disabled=false;button.textContent=authMode==='register'?'Buat akun':'Login ke Hutao';}
+}
+function openCommunity(){
+  if(!sessionToken){showAuth('login');return;}
+  communityMode=true;welcome.classList.add('hidden');messages.hidden=true;document.getElementById('profileView').hidden=true;document.getElementById('communityView').hidden=false;
+  input.placeholder='Message the Hutao community…';document.getElementById('breadcrumb').innerHTML='<span>Workspace</span><i>/</i><b>Community</b>';
+  document.querySelectorAll('.side-item').forEach(x=>x.classList.remove('active'));document.getElementById('communityButton').classList.add('active');
+  loadCommunityMessages();clearInterval(communityTimer);communityTimer=setInterval(loadCommunityMessages,3500);
+}
+function openBotChat(){communityMode=false;clearInterval(communityTimer);document.getElementById('communityView').hidden=true;document.getElementById('profileView').hidden=true;messages.hidden=false;input.placeholder='Message Hutao Bot... try .menu';document.getElementById('breadcrumb').innerHTML='<span>Workspace</span><i>/</i><b>Chat</b>';document.querySelectorAll('.side-item').forEach(x=>x.classList.remove('active'));document.getElementById('newChat').classList.add('active');}
+async function loadCommunityMessages(){
+  if(!communityMode||!sessionToken)return;
+  try{const r=await fetch(`/api/community/messages?room=${encodeURIComponent(activeCommunityRoom)}`,{headers:{Authorization:`Bearer ${sessionToken}`},cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'Gagal memuat komunitas');
+    const box=document.getElementById('communityMessages');const atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<100;
+    box.innerHTML=(d.messages||[]).map(m=>`<article class="community-message ${m.user_id===accountProfile?.id?'mine':''}"><div class="community-message-head"><b>${escapeHTML(m.username)}</b><span>${escapeHTML(m.role||'USER FREE')}</span><time>${new Date(m.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</time></div>${m.image?`<img class="community-image" src="${escapeHTML(m.image)}" alt="Shared image" loading="lazy">`:''}${m.text?`<p>${escapeHTML(m.text)}</p>`:''}</article>`).join('');
+    if(atBottom)box.scrollTop=box.scrollHeight;
+  }catch(e){console.debug('Community refresh:',e.message);}
+}
+document.getElementById('authOpen').addEventListener('click',()=>showAuth());
+document.getElementById('authClose').addEventListener('click',()=>{if(!sessionToken){showToast('Login atau daftar dulu untuk membuka Hutao Community.');return;}closeAuth();});
+document.getElementById('authBackdrop').addEventListener('click',e=>{if(e.target.id==='authBackdrop')closeAuth();});
+document.getElementById('loginTab').addEventListener('click',()=>setAuthMode('login'));
+document.getElementById('registerTab').addEventListener('click',()=>setAuthMode('register'));
+document.getElementById('authForm').addEventListener('submit',authSubmit);
+document.getElementById('communityButton').addEventListener('click',openCommunity);
+document.getElementById('newChat').addEventListener('click',()=>{openBotChat();clearConversation();});
+function openProfilePage(){
+  if(!sessionToken||!accountProfile){showAuth('login');return;}
+  communityMode=false;clearInterval(communityTimer);welcome.classList.add('hidden');messages.hidden=true;document.getElementById('communityView').hidden=true;document.getElementById('profileView').hidden=false;
+  const u=accountProfile,exp=Number(u.exp||0),level=Math.floor(exp/100)+1,progress=exp%100;
+  document.getElementById('profilePageName').textContent=u.username||'Hutao User';document.getElementById('profileAvatarLarge').textContent=(u.username||'H').slice(0,1).toUpperCase();
+  document.getElementById('profileRolePill').textContent=u.role||'USER FREE';document.getElementById('profileUsername').textContent=u.username||'—';document.getElementById('profileEmail').textContent=u.email||'—';document.getElementById('profileLevel').textContent=String(level);document.getElementById('profileExp').textContent=String(exp);document.getElementById('profileProgressText').textContent=`${progress} / 100 EXP`;document.getElementById('profileProgressBar').style.width=`${progress}%`;
+  document.getElementById('breadcrumb').innerHTML='<span>Workspace</span><i>/</i><b>My Profile</b>';document.querySelectorAll('.side-item').forEach(x=>x.classList.remove('active'));document.getElementById('profileButton').classList.add('active');
+}
+document.getElementById('profileButton').addEventListener('click',openProfilePage);
+document.getElementById('profileBackChat').addEventListener('click',openBotChat);
+document.getElementById('profileLogout').addEventListener('click',async()=>{if(sessionToken){try{await fetch('/api/auth/logout',{method:'POST',headers:{Authorization:`Bearer ${sessionToken}`}});}catch{}}sessionToken=null;accountProfile=null;userName='Guest';await saveSession(null);updateAccountUI();document.getElementById('profileView').hidden=true;showAuth('login');document.getElementById('authClose').hidden=true;});
+// Require web-based authentication for account/community features; guest can still explore bot chat.
+
+// Community room tabs: each room has its own shared server history.
+const roomMeta={general:['# general','Obrolan umum semua anggota Hutao.'], 'bot-talk':['# bot-talk','Diskusi command, fitur, dan ide bot.'], media:['# media','Bagikan gambar dan media komunitas.']};
+document.querySelectorAll('.room-tab').forEach(tab=>tab.addEventListener('click',()=>{
+  activeCommunityRoom=tab.dataset.room||'general';
+  document.querySelectorAll('.room-tab').forEach(x=>x.classList.toggle('active',x===tab));
+  const meta=roomMeta[activeCommunityRoom]||roomMeta.general;
+  document.getElementById('roomTitle').textContent=meta[0];document.getElementById('roomDescription').textContent=meta[1];
+  document.getElementById('communityMessages').innerHTML='';loadCommunityMessages();
+}));
 
 // Daily 17:00 WIB greeting. Delivered to open web sessions; browser polling is needed for live display.
 async function checkDailyGreeting(){
