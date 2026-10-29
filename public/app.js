@@ -84,7 +84,8 @@ function renderResponse(data,persist=true){
   if(data.user)html+=`<div class="user-info"><div class="info-chip"><small>CHAT USER</small><b>${escapeHTML(data.user)}</b></div><div class="info-chip"><small>SESSION STATUS</small><b style="color:#80dba5">● ONLINE</b></div></div>`;
   if(data.botInfo)html+=`<div class="bot-profile-grid"><div><small>BOT NAME</small><b>${escapeHTML(data.botInfo.name||BOT.name)}</b></div><div><small>VERSION</small><b>${escapeHTML(data.botInfo.version||BOT.version)}</b></div><div><small>USER ROLE</small><b class="role-badge">${escapeHTML(data.botInfo.role||BOT.role)}</b></div><div><small>RUNTIME</small><b>${escapeHTML(data.botInfo.runtime||"Starting…")}</b></div></div>`;
   if(data.image)html+=`<img class="chat-image response-image" src="${escapeHTML(data.image)}" alt="Bot image">`;
-  if(data.stats?.length)html+='<div class="stats">'+data.stats.map(s=>`<div class="stat"><small>${escapeHTML(s.label)}</small><b>${escapeHTML(s.value)}</b></div>`).join("")+'</div>';
+  if(data.network)html+='<div class="network-visual"><div class="network-head"><span class="network-dot"></span><b>LIVE NETWORK DIAGNOSTICS</b><span class="network-live">LIVE</span></div><div class="network-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><small>SERVER PROCESS · REAL-TIME SNAPSHOT</small></div>';
+  if(data.stats?.length)html+='<div class="stats '+(data.network?'network-stats':'')+'">'+data.stats.map(s=>`<div class="stat"><small>${escapeHTML(s.label)}</small><b>${escapeHTML(s.value)}</b></div>`).join("")+'</div>';
   if(data.buttons?.length)html+='<div class="card-buttons">'+data.buttons.map(b=>`<button class="card-button ${colorClass(b.color||data.accent)}" data-command="${escapeHTML(b.command||"")}"><span class="btn-icon">${escapeHTML(b.icon||"✦")}</span><span>${escapeHTML(b.label)}</span><span class="btn-arrow">↗</span></button>`).join("")+'</div>';
   html+='</div></div>';content.innerHTML=html;
   row.innerHTML=botAvatar()+'<div class="message-tools"><button class="reply-action" title="Reply" aria-label="Reply">↶</button></div>';row.querySelector(".reply-action").onclick=()=>{setReply({kind:"bot",text:data.title||data.text||"Bot response"});input.focus();};row.appendChild(content);messages.appendChild(row);scrollBottom();
@@ -164,3 +165,19 @@ const savedLogo=localStorage.getItem("hutaoCustomLogo");if(savedLogo)applyLogo(s
     if(history.length){welcome.classList.add("hidden");history.forEach(renderStoredMessage);scrollBottom();}
   }catch(error){console.warn("IndexedDB unavailable; chat will be temporary.",error);showToast("Local session storage unavailable");}
 })();
+
+// Daily 17:00 WIB greeting. Delivered to open web sessions; browser polling is needed for live display.
+async function checkDailyGreeting(){
+  try{
+    const response=await fetch('/api/daily-message',{cache:'no-store'});
+    if(!response.ok)return;
+    const data=await response.json();
+    if(!data.active)return;
+    const key='hutaoDailyGreeting:'+data.day;
+    if(localStorage.getItem(key))return;
+    localStorage.setItem(key,'sent');
+    renderResponse(data.message);
+  }catch(error){console.debug('Daily greeting check failed',error);}
+}
+checkDailyGreeting();
+setInterval(checkDailyGreeting,30000);
